@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+asyncpg
+pypika
+pydantic
+pydantic-settings
+python-dotenv
+bcrypt
+email-validator
