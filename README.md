@@ -86,7 +86,8 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
       "id": "uuid",
       "name": "John Doe",
       "email": "john@example.com",
-      "created_at": "timestamp"
+      "created_at": "timestamp",
+      "updated_at": "timestamp",
     },
     "access_token": "<jwt>",
     "token_type": "bearer"
