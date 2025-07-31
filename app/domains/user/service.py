@@ -1,7 +1,7 @@
 import logging
 
-logger = logging.getLogger("user_service")
-
+from app.core.logger import get_logger
+from app.core.checker import user_exists_checker
 from app.domains.user.repository import (
     get_user_by_id,
     get_user_by_email,
@@ -9,7 +9,6 @@ from app.domains.user.repository import (
     update_user as repo_update_user,
     delete_user_by_id,
     get_all_users as repo_get_all_users,
-    user_exists,
 )
 from app.domains.user.models import UserCreate, UserOut, UserUpdate
 from app.core.security import hash_password
@@ -19,6 +18,9 @@ from typing import List, Optional
 
 class UserNotFoundError(Exception):
     pass
+
+
+logger = get_logger("user_service")
 
 
 async def fetch_user(user_id: UUID) -> Optional[UserOut]:
@@ -46,7 +48,7 @@ async def fetch_user_by_email(email: str) -> Optional[UserOut]:
 async def update_user_service(user_id: UUID, user_update: UserUpdate) -> bool:
     """Update user information (name and/or email)"""
     try:
-        exists = await user_exists(user_id)
+        exists = await user_exists_checker(user_id)
         logger.info(f"update_user_service: user_exists({user_id}) = {exists}")
         if not exists:
             logger.warning(f"update_user_service: user_id {user_id} not found")
@@ -64,7 +66,7 @@ async def update_user_service(user_id: UUID, user_update: UserUpdate) -> bool:
 async def delete_user(user_id: UUID) -> bool:
     """Delete a user by ID. Returns True if deleted, False if not found."""
     try:
-        exists = await user_exists(user_id)
+        exists = await user_exists_checker(user_id)
         logger.info(f"delete_user: user_exists({user_id}) = {exists}")
         if not exists:
             logger.warning(f"delete_user: user_id {user_id} not found")

@@ -13,21 +13,23 @@ python-fastapi-postgres/
 │
 ├── app/
 │   ├── api/
-│   │   ├── deps.py                # (Dependency injection, currently empty)
 │   │   └── v1/
 │   │       ├── api_v1.py          # Main API router for v1
 │   │       └── routers/
-│   │           └── user_router.py # User CRUD endpoints
+│   │           └── user_router.py # User CRUD endpoints, login with JWT
 │   ├── core/
 │   │   ├── config.py              # App settings (env vars)
-│   │   ├── db.py                  # Database connection pool
+│   │   ├── db.py                  # Database connection pool, db_query helper
 │   │   ├── db_init.py             # (Optional) DB schema/migration logic
-│   │   └── security.py            # Password hashing/verification (bcrypt)
+│   │   ├── security.py            # Password hashing/verification (bcrypt)
+│   │   ├── jwt.py                 # JWT creation and verification utilities
+│   │   ├── logger.py              # Centralized logger utility
+│   │   └── checker.py             # Common checkers (e.g., user existence)
 │   ├── domains/
 │   │   └── user/
 │   │       ├── models.py          # Pydantic models for user
-│   │       ├── repository.py      # DB queries for user
-│   │       └── service.py         # Business logic for user
+│   │       ├── repository.py      # DB queries for user (uses db_query, logger)
+│   │       └── service.py         # Business logic for user (uses logger, checker)
 │   └── main.py                    # FastAPI app entrypoint
 │
 ├── app/migrations/
@@ -52,6 +54,15 @@ JWT_SECRET=your_super_secret_jwt_key
 
 ---
 
+## DRY Utilities and Improvements
+
+- **Logger Utility (`app/core/logger.py`)**: Use `get_logger("name")` for consistent, centralized logging across the app.
+- **Database Query Helper (`app/core/db.py`)**: Use `db_query(query_func)` to avoid repeating connection acquisition and query execution in repository functions.
+- **Checker Utility (`app/core/checker.py`)**: Use `user_exists_checker(user_id)` for user existence checks, reducing code duplication in services and routers.
+- **Repository and Service Layers**: Now use these helpers/utilities, making the code DRY and easier to maintain.
+
+---
+
 ## API Endpoints
 
 All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
@@ -69,7 +80,19 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
   ```
 - **Response:**
   `201 Created`
-  Returns the created user (without password).
+  ```json
+  {
+    "user": {
+      "id": "uuid",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "created_at": "timestamp"
+    },
+    "access_token": "<jwt>",
+    "token_type": "bearer"
+  }
+  ```
+  Returns the created user (without password) and a JWT token containing the user's ID.
 
 ### Get User by ID
 
@@ -108,6 +131,26 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
   `200 OK`
   List of user objects.
 
+### Login (JWT Auth)
+
+- **POST** `/users/login`
+- **Body:**
+  ```json
+  {
+    "email": "john@example.com",
+    "password": "yourpassword"
+  }
+  ```
+  - **Response:**
+    `200 OK`
+  ```json
+  {
+    "access_token": "<jwt>",
+    "token_type": "bearer"
+  }
+  ```
+  The JWT token includes the user's ID in the `sub` claim.
+
 ---
 
 ## Database Schema
@@ -127,7 +170,8 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 ## Security
 
 - Passwords are hashed with bcrypt (see `app/core/security.py`).
-- JWT secret is loaded from `.env` (for future authentication features).
+- JWT secret is loaded from `.env` and used for generating login tokens.
+- Authentication is stateless, using JWT tokens that contain only the user ID.
 
 ---
 
@@ -135,6 +179,7 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 
 - **Live reload:** Docker Compose is set up for hot reload with `uvicorn --reload`.
 - **DB wait:** Uses `wait-for-it.sh` to ensure the app starts only after the database is ready.
+- **DRY code:** Logger, DB query, and checker utilities keep the codebase clean and maintainable.
 
 ---
 
@@ -158,4 +203,6 @@ docker-compose up --build
 ## Extending
 
 - Add more routers to `app/api/v1/api_v1.py` as needed.
-- Add authentication, permissions, or more business logic in the `service.py` layer.
+- Add protected routes by implementing your own authentication middleware.
+- Add more business logic in the `service.py` layer.
+- Use the provided utilities to keep your code DRY and maintainable.

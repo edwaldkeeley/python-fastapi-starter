@@ -120,3 +120,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+# this code is not part of the application, will not work as expected due to outdated codes and not updated

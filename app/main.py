@@ -5,6 +5,7 @@ from app.core.db_init import init_db_schema
 from app.api.v1.api_v1 import api_router
 from app.migrations.run import run_migrations
 
+
 async def lifespan(app: FastAPI):
     # Startup
     await run_migrations()

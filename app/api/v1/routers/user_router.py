@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from app.domains.user.service import (
     fetch_user,
     create_user,
@@ -10,11 +10,21 @@ from app.domains.user.service import (
 from app.domains.user.models import UserCreate, UserOut, UserUpdate
 from typing import List
 from uuid import UUID
+from app.core.jwt import create_access_token
+from app.domains.user.repository import get_user_by_email
+from app.core.security import verify_password
+from pydantic import BaseModel
 
 router = APIRouter(tags=["Users"])
 
 
-@router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+class UserWithToken(BaseModel):
+    user: UserOut
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/", response_model=UserWithToken, status_code=status.HTTP_201_CREATED)
 async def create_user_endpoint(user: UserCreate):
     """Create a new user with email and password."""
     user_id = await create_user(user)
@@ -28,7 +38,12 @@ async def create_user_endpoint(user: UserCreate):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="User created but could not be retrieved",
         )
-    return created_user
+    token = create_access_token({
+        "sub": str(user_id),
+        "email": created_user.email,
+        "name": created_user.name
+    })
+    return UserWithToken(user=created_user, access_token=token)
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -80,3 +95,19 @@ async def update_user_route(user_id: UUID, user_update: UserUpdate):
 async def fetch_users():
     """Get all users."""
     return await get_all_users()
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@router.post("/login")
+async def login(data: LoginRequest):
+    user = await get_user_by_email(data.email)
+    if not user or not verify_password(data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token({"sub": str(user["id"])})
+    return {"access_token": token, "token_type": "bearer"}
+
+
