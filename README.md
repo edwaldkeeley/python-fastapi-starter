@@ -13,6 +13,7 @@ python-fastapi-postgres/
 │
 ├── app/
 │   ├── api/
+│   │   ├── deps.py                # Authentication dependencies
 │   │   └── v1/
 │   │       ├── api_v1.py          # Main API router for v1
 │   │       └── routers/
@@ -87,7 +88,7 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
       "name": "John Doe",
       "email": "john@example.com",
       "created_at": "timestamp",
-      "updated_at": "timestamp",
+      "updated_at": "timestamp"
     },
     "access_token": "<jwt>",
     "token_type": "bearer"
@@ -125,6 +126,25 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
   `{ "message": "User deleted successfully" }`
   or `404` if not found.
 
+### Get Profile (Protected Route)
+
+- **GET** `/users/profile`
+- **Headers:**
+  ```
+  Authorization: Bearer <jwt_token>
+  ```
+- **Response:**
+  `200 OK`
+  ```json
+  {
+    "id": "uuid",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  }
+  ```
+
 ### List All Users
 
 - **GET** `/users/`
@@ -142,15 +162,22 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
     "password": "yourpassword"
   }
   ```
-  - **Response:**
-    `200 OK`
+- **Response:**
+  `200 OK`
   ```json
   {
+    "user": {
+      "id": "uuid",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "created_at": "timestamp",
+      "updated_at": "timestamp"
+    },
     "access_token": "<jwt>",
     "token_type": "bearer"
   }
   ```
-  The JWT token includes the user's ID in the `sub` claim.
+  The JWT token includes only the user's ID in the `sub` claim for security.
 
 ---
 
@@ -170,9 +197,22 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 
 ## Security
 
-- Passwords are hashed with bcrypt (see `app/core/security.py`).
-- JWT secret is loaded from `.env` and used for generating login tokens.
-- Authentication is stateless, using JWT tokens that contain only the user ID.
+- **Password Security:**
+  - Passwords are hashed with bcrypt (see `app/core/security.py`)
+  - Password validation ensures minimum length of 8 characters
+  - Passwords are never returned in API responses
+
+- **Authentication:**
+  - JWT-based authentication using HTTPBearer scheme
+  - JWT secret loaded from `.env`
+  - Stateless authentication using tokens containing only the user ID
+  - Protected routes require valid JWT token in Authorization header
+
+- **Data Protection:**
+  - Email uniqueness enforced at database level
+  - Duplicate email registration prevented with clear error messages
+  - User data consistently returned using Pydantic models
+  - Input validation using Pydantic models
 
 ---
 
@@ -207,3 +247,6 @@ docker-compose up --build
 - Add protected routes by implementing your own authentication middleware.
 - Add more business logic in the `service.py` layer.
 - Use the provided utilities to keep your code DRY and maintainable.
+
+
+<!-- Let me know about issues with the README.md! -->

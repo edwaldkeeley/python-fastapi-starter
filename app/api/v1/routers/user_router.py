@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from app.api.deps import get_current_user
 from app.domains.user.service import (
     fetch_user,
     create_user,
@@ -7,26 +8,31 @@ from app.domains.user.service import (
     delete_user,
     UserNotFoundError,  # Import the custom exception
 )
-from app.domains.user.models import UserCreate, UserOut, UserUpdate
+from app.domains.user.models import (
+    UserCreate,
+    UserOut,
+    UserUpdate,
+    UserWithToken,
+    LoginRequest,
+)
 from typing import List
 from uuid import UUID
 from app.core.jwt import create_access_token
 from app.domains.user.repository import get_user_by_email
 from app.core.security import verify_password
-from pydantic import BaseModel
 
 router = APIRouter(tags=["Users"])
-
-
-class UserWithToken(BaseModel):
-    user: UserOut
-    access_token: str
-    token_type: str = "bearer"
 
 
 @router.post("/", response_model=UserWithToken, status_code=status.HTTP_201_CREATED)
 async def create_user_endpoint(user: UserCreate):
     """Create a new user with email and password."""
+    existing_user = await get_user_by_email(user.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+        )
+
     user_id = await create_user(user)
     if user_id is None:
         raise HTTPException(
@@ -38,12 +44,14 @@ async def create_user_endpoint(user: UserCreate):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="User created but could not be retrieved",
         )
-    token = create_access_token({
-        "sub": str(user_id),
-        "email": created_user.email,
-        "name": created_user.name
-    })
+    token = create_access_token({"sub": str(user_id)})
     return UserWithToken(user=created_user, access_token=token)
+
+
+@router.get("/profile", response_model=UserOut)
+async def get_profile(current_user: UserOut = Depends(get_current_user)):
+    """Get authenticated user's profile."""
+    return current_user
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -97,17 +105,18 @@ async def fetch_users():
     return await get_all_users()
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-@router.post("/login")
+@router.post("/login", response_model=UserWithToken)
 async def login(data: LoginRequest):
     user = await get_user_by_email(data.email)
-    if not user or not verify_password(data.password, user["password"]):
+    if user is None or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    # Convert to UserOut model to ensure consistent format
+    user_out = UserOut(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        created_at=user["created_at"],
+        updated_at=user["updated_at"],
+    )
     token = create_access_token({"sub": str(user["id"])})
-    return {"access_token": token, "token_type": "bearer"}
-
-
+    return UserWithToken(user=user_out, access_token=token)

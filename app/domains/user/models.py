@@ -33,6 +33,14 @@ class UserOut(UserBase):
     class Config:
         from_attributes = True
 
-
 class UserInDB(UserOut):
     password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserWithToken(BaseModel):
+    user: UserOut
+    access_token: str
+    token_type: str = "bearer"
