@@ -17,31 +17,36 @@ python-fastapi-postgres/
 │   │   └── v1/
 │   │       ├── api_v1.py          # Main API router for v1
 │   │       └── routers/
-│   │           └── user_router.py # User CRUD endpoints, login with JWT
+│   │           ├── user_router.py # User CRUD endpoints, login, profile
+│   │           └── file_router.py # File upload endpoint using MinIO
 │   ├── core/
 │   │   ├── config.py              # App settings (env vars)
-│   │   ├── db.py                  # Database connection pool, db_query helper
-│   │   ├── db_init.py             # (Optional) DB schema/migration logic
+│   │   ├── db.py                  # DB connection pool, query helper
+│   │   ├── db_init.py             # Optional DB schema/migration setup
 │   │   ├── security.py            # Password hashing/verification (bcrypt)
-│   │   ├── jwt.py                 # JWT creation and verification utilities
-│   │   ├── logger.py              # Centralized logger utility
-│   │   └── checker.py             # Common checkers (e.g., user existence)
+│   │   ├── jwt.py                 # JWT creation and verification
+│   │   ├── logger.py              # Centralized logger
+│   │   ├── checker.py             # Common validation (e.g. user existence)
+│   │   └── minio_client.py        # MinIO client and upload logic
 │   ├── domains/
-│   │   └── user/
-│   │       ├── models.py          # Pydantic models for user
-│   │       ├── repository.py      # DB queries for user (uses db_query, logger)
-│   │       └── service.py         # Business logic for user (uses logger, checker)
+│   │   ├── user/
+│   │   │   ├── models.py          # Pydantic models for user
+│   │   │   ├── repository.py      # DB queries
+│   │   │   └── service.py         # Business logic
+│   │   └── file/
+│   │       └── service.py         # File upload logic
 │   └── main.py                    # FastAPI app entrypoint
 │
 ├── app/migrations/
-│   ├── 001_create_user.sql        # SQL for user table
-│   └── run.py                     # (Optional) Migration runner
+│   ├── 001_create_user.sql        # SQL schema
+│   └── run.py                     # Optional migration runner
 │
-├── docker-compose.yml             # Docker Compose config
-├── Dockerfile                     # Docker build config
+├── docker-compose.yml             # Compose configuration for app + DB + MinIO
+├── Dockerfile                     # App Dockerfile
 ├── requirements.txt               # Python dependencies
-├── wait-for-it.sh                 # Wait for DB before starting app
-└── .env                           # Environment variables (not in repo)
+├── wait-for-it.sh                 # Wait for DB before app starts
+└── .env                           # Environment variables
+
 ```
 
 ---
@@ -51,6 +56,10 @@ python-fastapi-postgres/
 ```
 DATABASE_URL=postgresql://postgres:password@db:5432/app_db
 JWT_SECRET=your_super_secret_jwt_key
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=uploads
 ```
 
 ---
@@ -181,6 +190,20 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 
 ---
 
+### 📤 File Upload
+
+- **POST** `/files/upload`
+- **Response:**
+  ```json
+  {
+    "filename": "cool_meme.png",
+    "message": "File uploaded successfully"
+  }
+  ```
+
+---
+
+
 ## Database Schema
 
 **Table:** `users`
@@ -199,7 +222,6 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 
 - **Password Security:**
   - Passwords are hashed with bcrypt (see `app/core/security.py`)
-  - Password validation ensures minimum length of 8 characters
   - Passwords are never returned in API responses
 
 - **Authentication:**
@@ -218,7 +240,6 @@ All endpoints are under `/users` (e.g., `/users/`, `/users/{user_id}`).
 
 ## Development
 
-- **Live reload:** Docker Compose is set up for hot reload with `uvicorn --reload`.
 - **DB wait:** Uses `wait-for-it.sh` to ensure the app starts only after the database is ready.
 - **DRY code:** Logger, DB query, and checker utilities keep the codebase clean and maintainable.
 
@@ -248,5 +269,16 @@ docker-compose up --build
 - Add more business logic in the `service.py` layer.
 - Use the provided utilities to keep your code DRY and maintainable.
 
+---
 
-<!-- Let me know about issues with the README.md! -->
+## Future Enhancements
+
+- ✅ Add file download support
+- ⏳ Email verification
+- 🔐 Password reset flow
+- 📊 Admin dashboard (optional)
+
+---
+
+
+<!-- Fixes Needed!! + Current New File upload is bare minimum and may not be up to date with other features -->

@@ -8,6 +8,19 @@ services:
     ports:
       - "5432:5432"
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+
   web:
     build: .
     command: bash -c "./wait-for-it.sh db:5432 -- uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -15,8 +28,12 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - minio
     env_file:
       - .env
     volumes:
       - .:/code
       - ./wait-for-it.sh:/code/wait-for-it.sh
+
+volumes:
+  minio-data:
