@@ -33,8 +33,6 @@ python-fastapi-postgres/
 │   │   │   ├── models.py          # Pydantic models for user
 │   │   │   ├── repository.py      # DB queries
 │   │   │   └── service.py         # Business logic
-│   │   └── file/
-│   │       └── service.py         # File upload logic
 │   └── main.py                    # FastAPI app entrypoint
 │
 ├── app/migrations/
